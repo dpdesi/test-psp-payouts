@@ -1,0 +1,51 @@
+# yaml-language-server: $schema=./schema.json
+#
+# Autonomous payment status callbacks subsystem manifest.
+# Designed for a Lambda + API Gateway subsystem that receives payment provider
+# status callbacks and routes them through an event-driven processor.
+
+subsystem: payment-status-callbacks
+description: >-
+  Handles payment status callbacks from a payment provider via API Gateway and
+  Lambda, publishes callback events, and processes them asynchronously.
+
+tags:
+  Environment: dev
+  System: payments
+  Owner: dpdeslandes+avc-poc@gmail.com
+
+artefact_defaults:
+  bucket: dpdtest
+
+hub:
+  archive: true
+  archive_retention_days: 30
+
+bffs:
+  - name: payment-callback-api
+    activity: action
+    # Provided path was /payments/callbacks/*; the manifest schema accepts a single path segment before /*.
+    path: /payments-callbacks/*
+    read_only: false
+    publishes: [PaymentStatusCallbackReceived]
+
+controls:
+  - name: payment-status-processor
+    mode: event_reactor
+    subscribes: [PaymentStatusCallbackReceived]
+
+esgs:
+  - name: payment-provider-webhook
+    external: payment-provider
+    egress: [PaymentStatusCallbackReceived]
+    webhook: true
+
+operations:
+  event_lake:
+    enabled: true
+  fault_monitor:
+    enabled: true
+    emails: [dpdeslandes+avc-poc@gmail.com]
+  observability:
+    enabled: true
+    emails: [dpdeslandes+avc-poc@gmail.com]
