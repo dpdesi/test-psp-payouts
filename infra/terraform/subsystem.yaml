@@ -1,44 +1,42 @@
 # yaml-language-server: $schema=./schema.json
 #
-# Autonomous payment status callbacks subsystem manifest.
-# Designed for a Lambda + API Gateway subsystem that receives payment provider
-# status callbacks and routes them through an event-driven processor.
+# Lambda + API Gateway subsystem for handling payment status callbacks.
+# Provider callbacks enter through the payment-provider ESG webhook; no BFF is
+# defined because no person-facing user activity was provided in the request.
 
 subsystem: payment-status-callbacks
 description: >-
-  Handles payment status callbacks from a payment provider via API Gateway and
-  Lambda, publishes callback events, and processes them asynchronously.
+  Handles payment status callbacks from the payment provider with an inbound
+  webhook and event-driven processing. The inbound event
+  PaymentStatusCallbackReceived is explicitly external and is produced by the
+  payment-provider webhook.
 
 tags:
   Environment: dev
   System: payments
-  Owner: dpdeslandes+avc-poc@gmail.com
+  Owner: payments-team
 
 artefact_defaults:
-  bucket: dpdtest
+  bucket: dpdesi-test
 
 hub:
   archive: true
   archive_retention_days: 30
 
-bffs:
-  - name: payment-callback-api
-    activity: action
-    # Provided path was /payments/callbacks/*; the manifest schema accepts a single path segment before /*.
-    path: /payments-callbacks/*
-    read_only: false
-    publishes: [PaymentStatusCallbackReceived]
+bffs: []
 
 controls:
   - name: payment-status-processor
     mode: event_reactor
     subscribes: [PaymentStatusCallbackReceived]
+    # emits: # TODO: event(s) emitted after processing were not provided.
 
 esgs:
-  - name: payment-provider-webhook
-    external: payment-provider
-    egress: [PaymentStatusCallbackReceived]
+  - name: payment-provider
+    external: payment provider (external source of PaymentStatusCallbackReceived)
     webhook: true
+    # PaymentStatusCallbackReceived is an inbound callback event from this
+    # external provider, so the webhook-only ingress gateway takes no egress.
 
 operations:
   event_lake:
@@ -49,3 +47,5 @@ operations:
   observability:
     enabled: true
     emails: [dpdeslandes+avc-poc@gmail.com]
+  regional_health:
+    enabled: false
